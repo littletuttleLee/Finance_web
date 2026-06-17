@@ -312,14 +312,12 @@
                     currentType = this.getAttribute('data-type');
                     performSearch();
 
-                    // 點選分類後，自動將展開的選單收合起來
-                    filterTabs.classList.remove('expanded');
-                    expandToggleBtn.classList.remove('rotated');
+                    // 已移除：點選分類後自動收合的程式碼，改為維持現狀
                 });
             });
         }
 
-        // 監聽下箭頭按鈕的點擊事件
+        // 監聽下箭頭按鈕的點擊事件（只有在這裡點擊才會切換展開與收合）
         expandToggleBtn.addEventListener('click', function() {
             filterTabs.classList.toggle('expanded');
             this.classList.toggle('rotated');
@@ -346,7 +344,7 @@
                 
                 // 【重要功能】點擊卡片跳轉至主頁，並帶上 id 參數
                 card.addEventListener('click', function() {
-                    goToMainPage(stock.id);
+                    goToMainPage(stock.id, stock.name);
                 });
 
                 stockGrid.appendChild(card);
@@ -367,8 +365,12 @@
         }
 
         // 跳轉到主頁面的函式
-        function goToMainPage(stockId) {
-            window.location.href = `main.html?id=${stockId}`;
+        function goToMainPage(stockId, stockName) {
+            const url =
+                `main.html?id=${encodeURIComponent(stockId)}` +
+                `&name=${encodeURIComponent(stockName)}`;
+
+            window.location.href = url;
         }
 
         // 【確認搜尋】按鈕的邏輯
@@ -382,10 +384,13 @@
             );
 
             if (exactMatch) {
-                goToMainPage(exactMatch.id);
+                goToMainPage(
+                    exactMatch.id,
+                    exactMatch.name
+                );
             } else if (displayedStocks.length > 0) {
                 // 2. 如果沒有完全符合的，但目前下方有過濾出列表，預進第一個
-                goToMainPage(displayedStocks[0].id);
+                goToMainPage(displayedStocks[0].id, displayedStocks[0].name);
             } else {
                 alert("找不到該股票，請重新輸入！");
             }
