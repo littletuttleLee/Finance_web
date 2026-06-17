@@ -544,6 +544,10 @@
             const params = new URLSearchParams(window.location.search);
             return (params.get('id') || "2330").replace(/[^0-9]/g, '');
         }
+        function getStockName() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('name') || '';
+        }
 
         function getStockId() {
             const params = new URLSearchParams(window.location.search);
@@ -553,7 +557,7 @@
             return id;
         }
 
-        function fillTaiwanStockFact(num) {
+        function fillTaiwanStockFact(num,name) {
             const defaultProducts = {
                 "2330": { name: "台積電", web: "https://www.tsmc.com", desc: "全球大市值半導體專業晶圓代工龍頭..." },
                 "2409": { name: "友達光電", web: "https://www.auo.com", desc: "全球領先的薄膜電晶體液晶顯示器..." },
@@ -561,7 +565,7 @@
                 "2454": { name: "聯發科技", web: "https://www.mediatek.tw", desc: "全球頂尖的無晶圓廠半導體..." }
             };
             const data = defaultProducts[num] || {
-                name: `台灣上市櫃代號 ${num}`,
+                name: `${name} ${num}`,
                 web: `https://g0v.tw`,
                 desc: "該個股為台灣證券交易所/櫃買中心掛牌交易之企業..."
             };
@@ -734,9 +738,13 @@
         async function initPage() {
             const ticker = getStockId();
             const stockNum = getRawStockNumber();
-            document.getElementById('stockDisplay').innerText = ticker;
+            const stockName = getStockName();
+            document.getElementById('stockDisplay').innerText =
+            stockName
+                ? `${stockName} (${stockNum})`
+                : ticker;
 
-            const staticName = fillTaiwanStockFact(stockNum);
+            const staticName = fillTaiwanStockFact(stockNum, stockName);
             renderFinancialTable();
             
             // 頁面初次初始化，將各嵌入格子預設為 0
@@ -745,8 +753,8 @@
             try {
                 const result = await fetchYahooDirectly(ticker);
                 const meta = result.meta;
-                document.getElementById('stockDisplay').innerText = `${staticName} (${ticker}) - 資料串接成功`;
-                document.getElementById('c_name').innerText = `${staticName} (${ticker})`;
+                document.getElementById('stockDisplay').innerText = `${staticName} (${ticker})`;
+                document.getElementById('c_name').innerText = stockName ? `${stockName} (${stockNum})` : stockNum;
                 document.getElementById('c_ticker').innerText = meta?.symbol || ticker;
                 document.getElementById('c_timezone').innerText = meta?.timezone || "Asia/Taipei";
                 document.getElementById('c_currency').innerText = meta?.currency || "TWD";
