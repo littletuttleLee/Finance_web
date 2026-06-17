@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股資網 - 股票搜尋</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f4f7f6;
+            color: #333;
+        }
+
+        /* --- 頂部搜尋區域 --- */
+        .search-navbar {
+            background: linear-gradient(90deg, #1066C7 0%, #1A8CFF 100%);
+            padding: 20px 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .search-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-input-group {
+            flex: 1;
+        }
+
+        .search-input-group input {
+            width: 100%;
+            padding: 16px 25px;
+            font-size: 1.1rem;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.3s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .search-input-group input:focus {
+            border-color: #9DF2F2;
+            box-shadow: 0 0 15px rgba(157, 242, 242, 0.6);
+        }
+
+        .search-btn {
+            padding: 16px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #1066C7;
+            background: #9DF2F2;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            white-space: nowrap;
+        }
+
+        .search-btn:hover {
+            background: #ffffff;
+            box-shadow: 0 4px 15px rgba(255,255,255,0.4);
+            transform: translateY(-1px);
+        }
+
+        /* --- 主內容區域 --- */
+        .main-content {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        /* --- 可展開的分類區域外殼 --- */
+        .filter-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        /* 分類標籤列 */
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+
+        /* 隱藏滾動條 */
+        .filter-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 當激活「全部展開」時的樣式變更 */
+        .filter-tabs.expanded {
+            flex-wrap: wrap;
+            overflow-x: visible;
+        }
+
+        .tab-btn {
+            padding: 10px 22px;
+            background: #ffffff;
+            color: #555;
+            border: 1px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .tab-btn:hover {
+            background: #E8F4FF;
+            color: #1066C7;
+            border-color: #1066C7;
+        }
+
+        .tab-btn.active {
+            background: #1066C7;
+            color: #ffffff;
+            border-color: #1066C7;
+            box-shadow: 0 4px 10px rgba(16, 102, 199, 0.25);
+        }
+
+        /* 下箭頭展開按鈕 */
+        .expand-toggle-btn {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            color: #1066C7;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: transform 0.3s, background 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            flex-shrink: 0; /* 防止被擠壓 */
+        }
+
+        .expand-toggle-btn:hover {
+            background: #E8F4FF;
+        }
+
+        /* 旋轉箭頭 */
+        .expand-toggle-btn.rotated {
+            transform: rotate(180deg);
+        }
+
+        /* 狀態提示 */
+        .status-message {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #666;
+            margin-top: 50px;
+        }
+
+        /* 股票網格 */
+        .stock-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            display: none;
+        }
+
+        /* 卡片改為可點擊樣式 */
+        .stock-card {
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.03);
+            border-left: 6px solid #1066C7;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+            background: #FAFDFE;
+            border-left-color: #1A8CFF;
+        }
+
+        .stock-id {
+            font-size: 0.9rem;
+            color: #888;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .stock-name {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #111;
+            margin: 6px 0 16px 0;
+        }
+
+        .stock-tag {
+            display: inline-block;
+            padding: 4px 14px;
+            background: #E8F4FF;
+            color: #1066C7;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .search-navbar { padding: 15px 20px; }
+            .search-container { gap: 10px; }
+            .search-input-group input { padding: 12px 18px; font-size: 1rem; }
+            .search-btn { padding: 12px 20px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="search-navbar">
+        <div class="search-container">
+            <input type="hidden" id="exactMatchId" value="">
+            <div class="search-input-group">
+                <input type="text" id="searchInput" placeholder="輸入股票代碼或名稱進行即時搜尋...">
+            </div>
+            <button class="search-btn" id="searchBtn">確認搜尋</button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="filter-wrapper">
+            <div class="filter-tabs" id="filterTabs">
+                <button class="tab-btn active" data-type="">全部</button>
+            </div>
+            <button class="expand-toggle-btn" id="expandToggleBtn">▼</button>
+        </div>
+
+        <div id="statusMsg" class="status-message">正在從 Google 試算表同步資料...</div>
+        
+        <div class="stock-grid" id="stockGrid"></div>
+    </main>
+
+    <script>
+        // 請更換成你實際部署好的 Google Apps Script URL
+        const sheetAPI = "https://script.google.com/macros/s/AKfycbzIaLYTup7kUmbZu_OJjkCjgCd_xUkrlXNW5pRtw7V3P3hnRgjmcnTLgwLzkidbcVZ_/exec"; 
+        
+        let stockData = [];      
+        let currentType = "";    
+        let displayedStocks = []; // 紀錄目前畫面上過濾出來的股票
+
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const filterTabs = document.getElementById('filterTabs');
+        const expandToggleBtn = document.getElementById('expandToggleBtn');
+        const stockGrid = document.getElementById('stockGrid');
+        const statusMsg = document.getElementById('statusMsg');
+
+        async function init() {
+            try {
+                const response = await fetch(sheetAPI);
+                stockData = await response.json();
+                
+                generateTypeTabs();
+                statusMsg.style.display = 'none';
+                stockGrid.style.display = 'grid';
+                performSearch();
+                
+            } catch (error) {
+                statusMsg.innerText = "資料載入失敗，請確認 API 設定。";
+                console.error(error);
+            }
+        }
+
+        // 動態生成分類並處理展開收合
+        function generateTypeTabs() {
+            const types = [...new Set(stockData.map(item => item.type).filter(Boolean))];
+            filterTabs.innerHTML = '<button class="tab-btn active" data-type="">全部</button>';
+            
+            types.forEach(type => {
+                const btn = document.createElement('button');
+                btn.classList.add('tab-btn');
+                btn.setAttribute('data-type', type);
+                btn.innerText = type;
+                filterTabs.appendChild(btn);
+            });
+
+            // 綁定分類點擊
+            const tabButtons = filterTabs.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    tabButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentType = this.getAttribute('data-type');
+                    performSearch();
+
+                    // 點選分類後，自動將展開的選單收合起來
+                    filterTabs.classList.remove('expanded');
+                    expandToggleBtn.classList.remove('rotated');
+                });
+            });
+        }
+
+        // 監聽下箭頭按鈕的點擊事件
+        expandToggleBtn.addEventListener('click', function() {
+            filterTabs.classList.toggle('expanded');
+            this.classList.toggle('rotated');
+        });
+
+        // 渲染卡片並綁定點擊跳轉功能
+        function renderStocks(data) {
+            stockGrid.innerHTML = '';
+            displayedStocks = data; // 儲存當前顯示的股票
+            
+            if(data.length === 0) {
+                stockGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#888; padding: 40px 0;">找不到符合條件的股票</div>';
+                return;
+            }
+
+            data.forEach(stock => {
+                const card = document.createElement('div');
+                card.classList.add('stock-card');
+                card.innerHTML = `
+                    <div class="stock-id">${stock.id}</div>
+                    <div class="stock-name">${stock.name}</div>
+                    <span class="stock-tag">${stock.type || '未分類'}</span>
+                `;
+                
+                // 【重要功能】點擊卡片跳轉至主頁，並帶上 id 參數
+                card.addEventListener('click', function() {
+                    goToMainPage(stock.id);
+                });
+
+                stockGrid.appendChild(card);
+            });
+        }
+
+        function performSearch() {
+            const query = searchInput.value.trim().toLowerCase();
+
+            const filteredData = stockData.filter(stock => {
+                const matchesQuery = stock.id.toLowerCase().includes(query) || 
+                                     stock.name.toLowerCase().includes(query);
+                const matchesType = currentType === "" || stock.type === currentType;
+                return matchesQuery && matchesType;
+            });
+
+            renderStocks(filteredData);
+        }
+
+        // 跳轉到主頁面的函式
+        function goToMainPage(stockId) {
+            window.location.href = `main.html?id=${stockId}`;
+        }
+
+        // 【確認搜尋】按鈕的邏輯
+        searchBtn.addEventListener('click', function() {
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            // 1. 先找有沒有完全符合的股票代號或名稱
+            const exactMatch = stockData.find(stock => 
+                stock.id === query || stock.name === query
+            );
+
+            if (exactMatch) {
+                goToMainPage(exactMatch.id);
+            } else if (displayedStocks.length > 0) {
+                // 2. 如果沒有完全符合的，但目前下方有過濾出列表，預進第一個
+                goToMainPage(displayedStocks[0].id);
+            } else {
+                alert("找不到該股票，請重新輸入！");
+            }
+        });
+
+        searchInput.addEventListener('input', performSearch);
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchBtn.click(); // 按 Enter 等同點擊確認按鈕
+        });
+
+        init();
+    </script>
+</body>
+</html>

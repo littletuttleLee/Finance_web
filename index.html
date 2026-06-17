@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股資網 - 歡迎光臨</title>
+    <style>
+        /* 基礎樣式重設 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            /* 融合原圖的上藍下青漸層，並做現代化調色 */
+            background: linear-gradient(180deg, #1A8CFF 0%, #1066C7 45%, #9DF2F2 45%, #BCEEFA 100%);
+            position: relative;
+            transition: opacity 0.6s ease;
+        }
+
+        /* 網頁淡出效果（點擊進入時觸發） */
+        body.fade-out {
+            opacity: 0;
+        }
+
+        /* --- 背景裝飾元素 --- */
+        
+        /* 抽象折線圖背景 (使用 SVG 確保解析度完美) */
+        .chart-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 45%;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        /* 紅色 K 線 (左下) */
+        .k-line-red {
+            position: absolute;
+            bottom: 5%;
+            left: 10%;
+            width: 45px;
+            height: 180px;
+            background: #FF3B30;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(255, 59, 48, 0.4);
+            animation: pulse 3s infinite alternate;
+        }
+        .k-line-red::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 40px;
+            background: #FF3B30;
+        }
+
+        /* 綠色 K 線 (右下) */
+        .k-line-green {
+            position: absolute;
+            bottom: 5%;
+            right: 10%;
+            width: 45px;
+            height: 220px;
+            background: #34C759;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(52, 199, 89, 0.4);
+            animation: pulse 3s infinite alternate 1.5s;
+        }
+        .k-line-green::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 50px;
+            background: #34C759;
+        }
+
+        /* --- 主體內容 UI --- */
+        .content-container {
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 60px;
+        }
+
+        /* 標題：股資網 */
+        .title-box {
+            background: rgba(255, 255, 255, 0.12);
+            border: 4px solid #9DF2F2;
+            padding: 20px 60px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(4px);
+            position: relative;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .title-box h1 {
+            color: #FFFFFF;
+            font-size: 3.5rem;
+            letter-spacing: 6px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        /* 標題下方的小對話框箭頭（還原原圖對話框感） */
+        .title-box::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 20px 15px 0;
+            border-style: solid;
+            border-color: #9DF2F2 transparent;
+            display: block;
+            width: 0;
+        }
+
+        /* 按鈕：進入 */
+        .enter-btn {
+            background: #FFFFFF;
+            border: 4px solid #007AFF;
+            padding: 15px 70px;
+            border-radius: 18px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 122, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .enter-btn span {
+            color: #007AFF;
+            font-size: 2.2rem;
+            font-weight: bold;
+            letter-spacing: 4px;
+        }
+
+        /* 按鈕 Hover 互動特效 */
+        .enter-btn:hover {
+            transform: scale(1.08);
+            background: #007AFF;
+            border-color: #FFFFFF;
+            box-shadow: 0 12px 28px rgba(0, 122, 255, 0.4);
+        }
+
+        .enter-btn:hover span {
+            color: #FFFFFF;
+        }
+
+        .enter-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* --- 動畫效果定義 --- */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scaleY(0.98); opacity: 0.85; }
+            100% { transform: scaleY(1.02); opacity: 1; }
+        }
+
+        /* 響應式 RWD 縮放 */
+        @media (max-width: 768px) {
+            .title-box { padding: 15px 40px; }
+            .title-box h1 { font-size: 2.5rem; }
+            .enter-btn { padding: 12px 50px; }
+            .enter-btn span { font-size: 1.8rem; }
+            .k-line-red, .k-line-green { display: none; } /* 手機板隱藏旁支 K 線避免擁擠 */
+        }
+    </style>
+</head>
+<body>
+
+    <svg class="chart-bg" viewBox="0 0 1440 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,150 L200,80 L400,220 L650,50 L900,180 L1150,90 L1300,260 L1440,40" fill="none" stroke="#9DF2F2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M0,120 L300,250 L600,110 L950,230 L1200,70 L1440,190" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+
+    <div class="k-line-red"></div>
+    <div class="k-line-green"></div>
+
+    <div class="content-container">
+        <div class="title-box">
+            <h1>股資網</h1>
+        </div>
+
+        <a href="#" class="enter-btn" id="enterBtn">
+            <span>進入</span>
+        </a>
+    </div>
+
+    <script>
+        document.getElementById('enterBtn').addEventListener('click', function(e) {
+            e.preventDefault(); // 阻止預設直接跳轉
+            
+            // 觸發網頁淡出動畫
+            document.body.classList.add('fade-out');
+            
+            // 延遲 600 毫秒（等動畫播完）後跳轉至主網頁
+            setTimeout(function() {
+                // 請將 'main.html' 替換成你實際的主網頁檔案名稱或 URL
+                window.location.href = 'search.html'; 
+            }, 600);
+        });
+    </script>
+</body>
+</html>
