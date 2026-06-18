@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "MOPS 官方 API 終極轉發器",
+  "version": "1.0",
+  "description": "利用背景腳本完美繞過 CORS 與 Preflight 限制",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "https://mops.twse.com.tw/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1:5500/*", "http://localhost:*/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

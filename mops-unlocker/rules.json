@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Origin", "operation": "set", "value": "https://mops.twse.com.tw" },
+        { "header": "Referer", "operation": "set", "value": "https://mops.twse.com.tw/mops/#/web/t163sb01" }
+      ],
+      "responseHeaders": [
+        { "header": "Access-Control-Allow-Origin", "operation": "set", "value": "*" },
+        { "header": "Access-Control-Allow-Methods", "operation": "set", "value": "GET, POST, OPTIONS" },
+        { "header": "Access-Control-Allow-Headers", "operation": "set", "value": "Content-Type, Authorization, X-Requested-With" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "*://mops.twse.com.tw/*",
+      "resourceTypes": ["xmlhttprequest", "other"]
+    }
+  }
+]

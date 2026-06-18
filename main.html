@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股資網 - 股票詳情</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* --- 基礎設定 --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+        }
+
+        :root {
+            --primary-blue: #1066C7;
+            --light-blue: #1A8CFF;
+            --accent-cyan: #9DF2F2;
+            --bg-gray: #f0f4f8;
+            --sidebar-width: 260px;
+        }
+
+        html { scroll-behavior: smooth; }
+        body { background-color: var(--bg-gray); display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- 左側導覽列 --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #1066C7 0%, #084080 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            flex-shrink: 0;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            padding: 0 25px 30px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-logo a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+
+        .sidebar-logo a:hover {
+            color: #ffffff;
+            text-shadow: 0 0 10px var(--accent-cyan);
+            transform: translateX(3px);
+        }
+
+        .nav-item {
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-size: 1.05rem;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left: 4px solid var(--accent-cyan);
+        }
+
+        /* --- 右側主要區域 --- */
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 頂部 Header & 縮放 */
+        .header {
+            height: 100px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            z-index: 90;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .header.shrink {
+            height: 65px;
+            padding: 0 25px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+        }
+
+        .header-title {
+            font-size: 1.7rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform-origin: left center;
+        }
+
+        .header.shrink .header-title { font-size: 1.25rem; }
+
+        .marquee-container {
+            width: 460px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 30px;
+            padding: 8px 25px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform-origin: right center;
+        }
+
+        .header.shrink .marquee-container { width: 320px; transform: scale(0.9); }
+        .marquee-container i { color: #ff4d4f; margin-right: 10px; }
+
+        .marquee-text {
+            white-space: nowrap;
+            display: inline-block;
+            animation: marquee-scroll 15s linear infinite;
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        @keyframes marquee-scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* 中間主要內容滾動區 */
+        .content-scroll-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 40px;
+            scroll-behavior: smooth;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            border: 1px solid #eef2f6;
+        }
+
+        .section-card h2 {
+            font-size: 1.6rem;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-card h2::before {
+            content: ''; width: 6px; height: 26px; background: var(--primary-blue); border-radius: 10px;
+        }
+
+        #calculator h2::before { background: #e67e22; }
+        #ai-review h2::before { background: #722ed1; }
+
+        /* 公司資料表格樣式 */
+        .profile-grid-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 1rem; background: #fff; }
+        .profile-grid-table td { padding: 14px 18px; border: 1px solid #e2e8f0; color: #4a5568; }
+        .profile-grid-table td.label-cell { background-color: #f7fafc; color: #2d3748; font-weight: bold; width: 18%; }
+        .profile-grid-table td.value-cell { width: 32%; }
+        .profile-grid-table td.full-value-cell { width: 82%; }
+        .profile-grid-table a { color: var(--primary-blue); text-decoration: none; font-weight: bold; }
+
+        /* 財報互動按鈕控制區樣式 */
+        .filter-control-panel {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .control-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .control-row:last-child { margin-bottom: 0; }
+
+        .control-label {
+            font-weight: bold;
+            color: #4a5568;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .metric-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+        }
+
+        .metric-btn {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .metric-btn:hover { border-color: var(--light-blue); color: var(--primary-blue); background: #f0f7ff; }
+        .metric-btn.active {
+            background: var(--primary-blue); border-color: var(--primary-blue); color: #ffffff; box-shadow: 0 4px 12px rgba(16, 102, 199, 0.2);
+        }
+
+        .period-switch-group {
+            display: inline-flex; background: #e2e8f0; padding: 4px; border-radius: 30px; width: fit-content;
+        }
+
+        .period-btn {
+            background: transparent; border: none; outline: none; padding: 8px 24px; font-size: 0.9rem;
+            font-weight: bold; color: #64748b; border-radius: 25px; cursor: pointer; transition: all 0.2s ease;
+        }
+        .period-btn.active { background: #ffffff; color: var(--primary-blue); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+
+        /* 公司財報表格排版 */
+        .table-responsive {
+            width: 100%; overflow-x: auto; margin-top: 15px; border-radius: 8px; border: 1px solid #e2e8f0;
+        }
+
+        .financial-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 1rem; }
+        .financial-table th { background-color: #ebf8ff; color: #2b6cb0; font-weight: bold; padding: 14px 20px; border-bottom: 2px solid #cbd5e0; }
+        .financial-table td { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; color: #4a5568; }
+        .financial-table tr:nth-child(even) { background-color: #f7fafc; }
+        .financial-table tr:hover { background-color: #edf2f7; }
+
+        /* ── 財報計算機優化樣式 ── */
+        .calc-header-actions {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;
+            background: #fff8f2; border: 1px dashed #f39c12; padding: 15px 20px; border-radius: 10px;
+            flex-wrap: wrap; gap: 15px;
+        }
+        .calc-desc { color: #7f8c8d; font-size: 0.95rem; }
+        
+        /* 下拉選單與帶入按鈕組合 */
+        .fill-control-group { display: flex; align-items: center; gap: 10px; }
+        .calc-select {
+            padding: 9px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;
+            font-weight: bold; color: #334155; outline: none; background-color: white; cursor: pointer;
+        }
+        .calc-select:focus { border-color: #e67e22; }
+        
+        .btn-auto-fill {
+            background: #e67e22; color: white; border: none; padding: 10px 18px; font-weight: bold;
+            border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+            font-size: 0.9rem;
+        }
+        .btn-auto-fill:hover { background: #d35400; box-shadow: 0 4px 10px rgba(230,126,34,0.3); }
+
+        /* 公式與嵌入式輸入框樣式 */
+        .calc-formula-list { display: flex; flex-direction: column; gap: 20px; }
+        .formula-row-card {
+            background: #fdfefe; border: 1px solid #eef2f5; border-left: 5px solid #e67e22;
+            border-radius: 8px; padding: 18px 25px; box-shadow: 0 2px 6px rgba(0,0,0,0.01);
+        }
+        .formula-hint { font-size: 0.85rem; color: #95a5a6; margin-bottom: 10px; font-weight: 500; font-style: italic; }
+        
+        /* 完整方程式排版 */
+        .formula-expression-block {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;
+        }
+        .formula-left-part { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; color: #2c3e50; flex-wrap: wrap; }
+        .formula-title { font-weight: bold; min-width: 160px; color: #111; }
+        
+        /* 嵌入公式的輸入框設計 */
+        .embedded-input {
+            width: 140px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px;
+            font-size: 0.95rem; font-weight: bold; color: #e67e22; text-align: center; background-color: #fffbfa;
+            transition: all 0.2s;
+        }
+        .embedded-input:focus { outline: none; border-color: #e67e22; background-color: #fff; box-shadow: 0 0 0 3px rgba(230,126,34,0.15); }
+        /* 隱藏數字輸入框微調箭頭 */
+        .embedded-input::-webkit-outer-spin-button, .embedded-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* 右側結果完美靠右對齊 */
+        .formula-right-result {
+            font-size: 1.3rem; font-weight: 800; min-width: 180px; text-align: right; margin-left: auto;
+        }
+        
+        /* 正負值顏色樣式 */
+        .result-positive { color: #dc2626; }  
+        .result-negative { color: #16a34a; }  
+
+        .placeholder-text {
+            color: #999; font-style: italic; border: 2px dashed #eee; padding: 40px; text-align: center; border-radius: 10px; margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <a href="search.html"><i class="fa-solid fa-chevron-left" style="font-size: 1.2rem; margin-right: 8px;"></i>股資網</a>
+        </div>
+        
+        <nav class="nav-group">
+            <a href="#intro" class="nav-item active"><i class="fa-solid fa-circle-info"></i> 公司簡介</a>
+            <a href="#reports" class="nav-item"><i class="fa-solid fa-file-invoice-dollar"></i> 公司財報</a>
+            <a href="#calculator" class="nav-item"><i class="fa-solid fa-calculator"></i> 財報計算機</a>
+            <a href="#ai-review" class="nav-item"><i class="fa-solid fa-robot"></i> AI 評語</a>
+        </nav>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="header" id="dynamicHeader">
+            <div class="header-title">
+                <i class="fa-solid fa-chart-line"></i> 個股資訊：<span id="stockDisplay">正在連線 Proxy 獲取 Yahoo 數據...</span>
+            </div>
+            <div class="marquee-container">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div class="marquee-text">投資理財 有賺有賠，申購前應詳閱公開說明書！歡迎來到股資網即時數據監控系統。</div>
+            </div>
+        </header>
+
+        <main class="content-scroll-area" id="scrollArea">
+            
+            <section id="intro" class="section-card">
+                <h2>公司基本資料 (由行情流自動推算)</h2>
+                <div id="introContainer">
+                    <table class="profile-grid-table">
+                        <tr>
+                            <td class="label-cell">個股交易名稱</td><td class="value-cell" id="c_name">載入中...</td>
+                            <td class="label-cell">所屬交易所交易代號</td><td class="value-cell" id="c_ticker">載入中...</td>
+                        </tr>
+                        <tr>
+                            <td class="label-cell">交易市場時區</td><td class="value-cell" id="c_timezone">載入中...</td>
+                            <td class="label-cell">計價貨幣基準</td><td class="value-cell" id="c_currency">載入中...</td>
+                        </tr>
+                        <tr>
+                            <td class="label-cell">前一交易日收盤價</td><td class="value-cell" id="c_prev_close">載入中...</td>
+                            <td class="label-cell">目前交易市場狀態</td><td class="value-cell" id="c_status">載入中...</td>
+                        </tr>
+                        <tr>
+                            <td class="label-cell">公司外部參考檢索</td><td class="full-value-cell" colspan="3" id="c_web">載入中...</td>
+                        </tr>
+                        <tr>
+                            <td class="label-cell">主要核心業務說明</td><td class="full-value-cell" colspan="3" id="c_products">載入中...</td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+
+            <section id="reports" class="section-card">
+                <h2>公司動態財報數據看板</h2>
+                <div class="filter-control-panel">
+                    <div class="control-row">
+                        <div class="control-label"><i class="fa-solid fa-list-check" style="color: var(--primary-blue);"></i> 請選擇財報會計科目指標：</div>
+                        <div class="metric-btn-grid" id="metricGrid">
+                            <button class="metric-btn active" onclick="changeMetric('營業收入')">營業收入</button>
+                            <button class="metric-btn" onclick="changeMetric('營業成本')">營業成本</button>
+                            <button class="metric-btn" onclick="changeMetric('營業毛利')">營業毛利</button>
+                            <button class="metric-btn" onclick="changeMetric('本期淨利')">本期淨利</button>
+                            <button class="metric-btn" onclick="changeMetric('資產總額')">資產總額</button>
+                            <button class="metric-btn" onclick="changeMetric('負債總額')">負債總額</button>
+                            <button class="metric-btn" onclick="changeMetric('權益總額')">權益總額</button>
+                            <button class="metric-btn" onclick="changeMetric('流動資產')">流動資產</button>
+                            <button class="metric-btn" onclick="changeMetric('流動負債')">流動負債</button>
+                            <button class="metric-btn" onclick="changeMetric('平均存貨')">平均存貨</button>
+                            <button class="metric-btn" onclick="changeMetric('在外流通股數')">在外流通股數</button>
+                        </div>
+                    </div>
+                    <div class="control-row" style="margin-top: 5px;">
+                        <div class="control-label"><i class="fa-solid fa-clock" style="color: var(--primary-blue);"></i> 顯示時間週期：</div>
+                        <div class="period-switch-group">
+                            <button class="period-btn active" id="btn-quarter" onclick="changePeriod('quarter')">季度會計報告</button>
+                            <button class="period-btn" id="btn-year" onclick="changePeriod('year')">年度審計報告</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="financial-table">
+                        <thead>
+                            <tr>
+                                <th id="th-period">財報結算期別</th>
+                                <th id="th-metric-name">會計科目項目</th>
+                                <th>報表揭露數值 (千元/股)</th>
+                                <th>季度/年度年增率 (YoY)</th>
+                                <th>審計狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr><td colspan="5" style="text-align: center;">正在載入數據中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="calculator" class="section-card">
+                <h2>即時財報計算機 (公式嵌入式)</h2>
+                
+                <div class="calc-header-actions">
+                    <div class="calc-desc"><i class="fa-solid fa-circle-info"></i> 輸入框已直接嵌入算式中，您可以自由修改格子的數值，系統將自動即時運算。</div>
+                    
+                    <div class="fill-control-group">
+                        <select id="calcTypeSelect" class="calc-select" onchange="handleTypeChange()">
+                            <option value="year" selected>年度報告</option>
+                            <option value="quarter">季度報告</option>
+                        </select>
+                        
+                        <select id="calcPeriodDetailSelect" class="calc-select">
+                            <option value="0">2025 年度</option>
+                            <option value="1">2024 年度</option>
+                            <option value="2">2023 年度</option>
+                            <option value="3">2022 年度</option>
+                        </select>
+
+                        <button class="btn-auto-fill" onclick="fetchAndFillSelectedData()">
+                            <i class="fa-solid fa-download"></i> 點擊帶入
+                        </button>
+                    </div>
+                </div>
+
+                <div class="calc-formula-list">
+                    
+                    <div class="formula-row-card">
+                        <div class="formula-hint">原方程公式：營業毛利 / 營業收入 * 100%</div>
+                        <div class="formula-expression-block">
+                            <div class="formula-left-part">
+                                <span class="formula-title">營業毛利率</span>
+                                <span>=</span>
+                                <input type="number" id="in-grossProfit" class="embedded-input" placeholder="營業毛利(千元)" oninput="doImmediateCalc()">
+                                <span>÷</span>
+                                <input type="number" id="in-revenue" class="embedded-input" placeholder="營業收入(千元)" oninput="doImmediateCalc()">
+                                <span>× 100%</span>
+                            </div>
+                            <div class="formula-right-result" id="res-grossMargin">0.00 %</div>
+                        </div>
+                    </div>
+
+                    <div class="formula-row-card">
+                        <div class="formula-hint">原方程公式：本期淨利 / 權益總額 * 100%</div>
+                        <div class="formula-expression-block">
+                            <div class="formula-left-part">
+                                <span class="formula-title">ROE 股東權益報酬率</span>
+                                <span>=</span>
+                                <input type="number" id="in-netProfit1" class="embedded-input" placeholder="本期淨利(千元)" oninput="syncNetProfit('in-netProfit1')">
+                                <span>÷</span>
+                                <input type="number" id="in-equity" class="embedded-input" placeholder="權益總額(千元)" oninput="doImmediateCalc()">
+                                <span>× 100%</span>
+                            </div>
+                            <div class="formula-right-result" id="res-roe">0.00 %</div>
+                        </div>
+                    </div>
+
+                    <div class="formula-row-card">
+                        <div class="formula-hint">原方程公式：負債總額 / 資產總額 * 100%</div>
+                        <div class="formula-expression-block">
+                            <div class="formula-left-part">
+                                <span class="formula-title">負債比率</span>
+                                <span>=</span>
+                                <input type="number" id="in-totalLiabilities" class="embedded-input" placeholder="負債總額(千元)" oninput="doImmediateCalc()">
+                                <span>÷</span>
+                                <input type="number" id="in-totalAssets" class="embedded-input" placeholder="資產總額(千元)" oninput="doImmediateCalc()">
+                                <span>× 100%</span>
+                            </div>
+                            <div class="formula-right-result" id="res-debtRatio">0.00 %</div>
+                        </div>
+                    </div>
+
+                    <div class="formula-row-card">
+                        <div class="formula-hint">原方程公式：流動資產 / 流動負債 * 100%</div>
+                        <div class="formula-expression-block">
+                            <div class="formula-left-part">
+                                <span class="formula-title">流動比率</span>
+                                <span>=</span>
+                                <input type="number" id="in-currentAssets" class="embedded-input" placeholder="流動資產(千元)" oninput="doImmediateCalc()">
+                                <span>÷</span>
+                                <input type="number" id="in-currentLiabilities" class="embedded-input" placeholder="流動負債(千元)" oninput="doImmediateCalc()">
+                                <span>× 100%</span>
+                            </div>
+                            <div class="formula-right-result" id="res-currentRatio">0.00 %</div>
+                        </div>
+                    </div>
+
+                    <div class="formula-row-card">
+                        <div class="formula-hint">原方程公式：365 / (營業成本 / 平均存貨)</div>
+                        <div class="formula-expression-block">
+                            <div class="formula-left-part">
+                                <span class="formula-title">存貨週轉天數</span>
+                                <span>= 365 ÷ (</span>
+                                <input type="number" id="in-cost" class="embedded-input" placeholder="營業成本(千元)" oninput="doImmediateCalc()">
+                                <span>÷</span>
+                                <input type="number" id="in-inventory" class="embedded-input" placeholder="平均存貨(千元)" oninput="doImmediateCalc()">
+                                <span>)</span>
+                            </div>
+                            <div class="formula-right-result" id="res-inventoryDays">0.00 天</div>
+                        </div>
+                    </div>
+
+                    <div class="formula-row-card">
+                        <div class="formula-hint">原方程公式：本期淨利 / 在外流通股數</div>
+                        <div class="formula-expression-block">
+                            <div class="formula-left-part">
+                                <span class="formula-title">每股盈餘 (EPS)</span>
+                                <span>=</span>
+                                <input type="number" id="in-netProfit2" class="embedded-input" placeholder="本期淨利(千元)" oninput="syncNetProfit('in-netProfit2')">
+                                <span>÷</span>
+                                <input type="number" id="in-shares" class="embedded-input" placeholder="在外流通股數(股)" oninput="doImmediateCalc()">
+                            </div>
+                            <div class="formula-right-result" id="res-eps">0.00 元</div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <section id="ai-review" class="section-card">
+                <h2>AI 評語分析</h2>
+                <div class="placeholder-text" style="border-color: #efdbff;">[ 正在透過 AI 大型語言模型生成該個股評語... ]</div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        let currentMetric = "營業收入";
+        let currentPeriod = "quarter"; 
+
+        // 全域真實財報快取（最終呈現用的單季與年度資料）
+        let globalMopsData = null;
+
+        function getRawStockNumber() {
+            const params = new URLSearchParams(window.location.search);
+            return (params.get('id') || "2330").replace(/[^0-9]/g, '');
+        }
+        function getStockName() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('name') || '';
+        }
+
+        function getStockId() {
+            const params = new URLSearchParams(window.location.search);
+            let id = params.get('id') || "2330";
+            id = id.toUpperCase();
+            if (!id.includes('.') && !isNaN(id)) { id += ".TW"; }
+            return id;
+        }
+
+        function fillTaiwanStockFact(num, name) {
+            const defaultProducts = {
+                "2330": { name: "台積電", web: "https://www.tsmc.com", desc: "全球大市值半導體專業晶圓代工龍頭..." },
+                "2409": { name: "友達光電", web: "https://www.auo.com", desc: "全球領先的薄膜電晶體液晶顯示器..." },
+                "2317": { name: "鴻海精密", web: "https://www.foxconn.com", desc: "全球最大電子代工服務..." },
+                "2454": { name: "聯發科技", web: "https://www.mediatek.tw", desc: "全球頂尖的無晶圓廠半導體..." }
+            };
+            const data = defaultProducts[num] || {
+                name: `${name} ${num}`,
+                web: `https://g0v.tw`,
+                desc: "該個股為台灣證券交易所/櫃買中心掛牌交易之企業..."
+            };
+            const webEl = document.getElementById('c_web');
+            const descEl = document.getElementById('c_products');
+            if (webEl) webEl.innerHTML = `<a href="${data.web}" target="_blank">${data.web}</a>`;
+            if (descEl) descEl.innerText = data.desc;
+            return data.name;
+        }
+
+        // Yahoo 股價 K 線抓取
+        async function fetchYahooDirectly(ticker) {
+            const endDateObj = new Date();
+            const startDateObj = new Date();
+            startDateObj.setDate(endDateObj.getDate() - 14);
+            const s = Math.floor(startDateObj.getTime() / 1000);
+            const e = Math.floor(endDateObj.getTime() / 1000) + 86400;
+            const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?period1=${s}&period2=${e}&interval=1d&events=history`;
+            
+            const proxies = [
+                async () => { const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(yfUrl)}`); return res.json(); },
+                async () => { const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(yfUrl)}`); const json = await res.json(); return JSON.parse(json.contents); }
+            ];
+            let data = null;
+            for (const tryProxy of proxies) { try { data = await tryProxy(); if (data?.chart?.result?.[0]) break; } catch (err) {} }
+            if (!data?.chart?.result?.[0]) {
+                throw new Error(`[Yahoo API 錯誤] 無法透過所有代理伺服器取得股價歷史資料 (${ticker})`);
+            }
+            return data.chart?.result?.[0];
+        }
+        /**
+        * 🛠 自動生成最近 8 個季度（民國年）
+        * 根據當前日期動態推算，確保系統無需手動更新年份
+        */
+        function getRecentQuarters(count = 8) {
+            const d = new Date();
+            let y = d.getFullYear() - 1911; // 轉為民國年
+            let m = d.getMonth() + 1;
+            let s = Math.ceil(m / 3); // 目前季度
+
+            // 從前一季開始抓取 (因為本季財報通常尚未公布)
+            s--;
+            if (s === 0) { s = 4; y--; }
+
+            let list = [];
+            for (let i = 0; i < count; i++) {
+                list.push({ year: y.toString(), season: s.toString() });
+                s--;
+                if (s === 0) { s = 4; y--; }
+            }
+            return list;
+        }
+
+        // =================================================================
+        // ── 💎 官方新版 SPA 數據解析引擎（動態季度版） ──
+        // =================================================================
+        async function fetchMopsFinancialData(stockNum) {
+            if (globalMopsData && globalMopsData.length > 0) {
+                return globalMopsData; 
+            }
+            
+            const targetNumClean = String(stockNum).trim();
+            console.log(`%c[🔍 MOPS 引擎] 啟動。目標個股: [${targetNumClean}]`, "color: #1e40af; font-weight: bold; font-size: 14px;");
+
+            // 自動取得最近 8 季
+            const quartersToFetch = getRecentQuarters(8);
+            console.log(`%c[🔍 MOPS 引擎] 準備抓取季度:`, "color: #1e40af;", quartersToFetch);
+
+            const cumulativeReports = [];
+
+            // 外掛通訊封裝
+            const callExtensionToFetch = (payload) => {
+                return new Promise((resolve, reject) => {
+                    const requestId = Math.random().toString(36).substring(2);
+                    const listener = (event) => {
+                        if (event.data && event.data.type === "RESP_TO_PAGE" && event.data.requestId === requestId) {
+                            window.removeEventListener("message", listener);
+                            if (event.data.result && event.data.result.success) {
+                                resolve(event.data.result.data);
+                            } else {
+                                reject(new Error(event.data.result?.error || "外掛回傳未知錯誤"));
+                            }
+                        }
+                    };
+                    window.addEventListener("message", listener);
+                    window.postMessage({ type: "REQ_FROM_PAGE", requestId: requestId, payload: payload }, "*");
+                });
+            };
+
+            try {
+                // 1. 抓取各季官方累積原始數據
+                for (const q of quartersToFetch) {
+                    try {
+                        const rawPayload = await callExtensionToFetch({
+                            companyId: targetNumClean,
+                            dataType: "2",
+                            season: q.season,
+                            year: q.year,
+                            subsidiaryCompanyId: ""
+                        });
+
+                        if (rawPayload) {
+                            console.log(`%c[🔍 RAW JSON] 取得 ${q.year}Q${q.season} 原始回應:`, "color: #9333ea; font-weight: bold;", rawPayload);
+                        }
+
+                        if (rawPayload && rawPayload.code === 200 && rawPayload.result) {
+                            const kvMap = {};
+                            
+                            // 定義要抓取的來源優先順序 (先處理 CAL 再處理 CCSI，或反之，依需求調整)
+                            // 這裡使用陣列遍歷，確保 CCSI 與 CAL 的資料都會被處理
+                            const dataSources = ['CAL', 'CCSI']; 
+
+                            dataSources.forEach(sourceKey => {
+                                const sourceData = rawPayload.result[sourceKey]?.data;
+                                if (sourceData && Array.isArray(sourceData)) {
+                                    sourceData.forEach(row => {
+                                        if (row && row.length >= 2) {
+                                            const key = row[0].trim();
+                                            const valStr = row[1];
+                                            let cleanVal = 0;
+                                            if (valStr && valStr !== "-") {
+                                                cleanVal = parseFloat(valStr.replace(/,/g, ''));
+                                            }
+                                            // 將資料統一存入 kvMap
+                                            // 若 key 重複，後面的來源會覆蓋前面的 (您可視需求決定覆蓋順序)
+                                            kvMap[key] = cleanVal;
+                                        }
+                                    });
+                                }
+                            });
+
+                            // 增強型 Key 映射表 (此處邏輯不變，直接從匯總好的 kvMap 查找)
+                            const findVal = (possibleKeys) => {
+                                for (const key of possibleKeys) {
+                                    if (kvMap[key] !== undefined) return kvMap[key];
+                                }
+                                const foundKey = Object.keys(kvMap).find(k => possibleKeys.some(pk => k.includes(pk)));
+                                return foundKey ? kvMap[foundKey] : 0;
+                            };
+
+                            cumulativeReports.push({
+                                year: q.year,
+                                season: q.season,
+                                periodKey: `${q.year}Q${q.season}`,
+                                "營業收入": findVal(["營業收入"]),
+                                "營業成本": findVal(["營業成本"]),
+                                "營業利益": findVal(["營業利益（損失）", "營業利益"]),
+                                "營業毛利": findVal(["營業毛利（毛損）淨額", "營業毛利（毛損）", "營業毛利"]),
+                                "本期淨利": findVal(["本期淨利（淨損）", "繼續營業單位本期淨利（淨損）", "本期淨利"]),
+                                "資產總額": findVal(["資產總額", "資產總計"]),
+                                "負債總額": findVal(["負債總額", "負債總計"]),
+                                "權益總額": findVal(["權益總額", "權益總計"]),
+                                "流動資產": findVal(["流動資產"]),
+                                "流動負債": findVal(["流動負債"]),
+                                "平均存貨": findVal(["存貨"]),
+                                "在外流通股數": findVal(["在外流通股數", "普通股股本"]),
+                                "eps": findVal(["基本每股盈餘（元）", "基本每股盈餘"])
+                            });
+                        }
+                    } catch (e) {
+                        console.warn(`[⚠️ 略過] 無法取得 ${q.year}Q${q.season} 累積數據:`, e.message);
+                    }
+                    await new Promise(r => setTimeout(r, 200)); // 避免請求過快
+                }
+
+                // 2. 進行單季數據拆解 (維持原有邏輯)
+                const singleQuarterReports = [];
+                const incomeStatementFields = ["營業收入", "營業成本", "營業利益", "營業毛利", "本期淨利", "eps"];
+
+                cumulativeReports.sort((a, b) => (parseInt(a.year) * 10 + parseInt(a.season)) - (parseInt(b.year) * 10 + parseInt(b.season)));
+
+                cumulativeReports.forEach((current, idx) => {
+                    const currentSeason = parseInt(current.season);
+                    const processed = { ...current, periodName: `${parseInt(current.year) + 1911} 年 第 ${current.season} 季` };
+
+                    if (currentSeason > 1 && idx > 0) {
+                        const prevReport = cumulativeReports[idx - 1];
+                        // 檢查是否為同一年度
+                        if (prevReport.year === current.year) {
+                            incomeStatementFields.forEach(field => {
+                                processed[field] = current[field] - prevReport[field];
+                            });
+                        }
+                    }
+                    singleQuarterReports.push(processed);
+                });
+
+                // 依時間新 -> 舊排序供前端使用
+                singleQuarterReports.sort((a, b) => (parseInt(b.year) * 10 + parseInt(b.season)) - (parseInt(a.year) * 10 + parseInt(b.season)));
+
+                console.log("%c🎉 [LOG 2] 數據拍平與單季拆解完成！", "color: #047857; font-weight: bold;");
+                globalMopsData = singleQuarterReports;
+                return globalMopsData;
+
+            } catch (error) {
+                throw new Error(`[MOPS 數據清洗引擎致命錯誤] ${error.message}`);
+            }
+        }
+
+        // =================================================================
+        // ── 🔄 欄位對照與數值讀取核心（支援單季與年度彙整讀取）──
+        // =================================================================
+        function getRealFinancialValue(metric, period, index, stockNum) {
+            if (!globalMopsData || globalMopsData.length === 0) return 0;
+
+            const metricMap = {
+                "revenue": "營業收入",       "營業收入": "營業收入",
+                "cost": "營業成本",          "營業成本": "營業成本",
+                "grossProfit": "營業毛利",   "營業毛利": "營業毛利",
+                "operatingProfit": "營業利益","營業利益": "營業利益",
+                "netIncome": "本期淨利",     "本期淨利": "本期淨利",
+                "totalAssets": "資產總額",   "資產總額": "資產總額",
+                "totalLiabilities": "負債總額","負債總額": "負債總額",
+                "equity": "權益總額",        "權益總額": "權益總額",
+                "currentAssets": "流動資產", "流動資產": "流動資產",
+                "currentLiabilities": "流動負債","流動負債": "流動負債",
+                "inventory": "平均存貨",     "平均存貨": "平均存貨",
+                "shares": "在外流通股數",   "在外流通股數": "在外流通股數",
+                "eps": "eps"
+            };
+
+            const realKey = metricMap[metric] || metric;
+            const balanceSheetFields = ["資產總額", "負債總額", "權益總額", "流動資產", "流動負債", "平均存貨", "在外流通股數", "eps"];
+
+            if (period === "quarter") {
+                if (index >= globalMopsData.length) return 0;
+                return globalMopsData[index][realKey] || 0;
+            } else {
+                // 年度彙整：因 globalMopsData 已被拆為獨立四季，損益表科目在年度模式下需將該年所有單季進行加總
+                const uniqueYears = [...new Set(globalMopsData.map(r => r.year))];
+                if (index >= uniqueYears.length) return 0;
+                
+                const targetYear = uniqueYears[index];
+                const yearReports = globalMopsData.filter(r => r.year === targetYear);
+
+                if (balanceSheetFields.includes(realKey)) {
+                    // 資產負債表項目及 EPS：取該年最新季度（陣列第一筆）的期末數值
+                    return yearReports[0] ? (yearReports[0][realKey] || 0) : 0; 
+                } else {
+                    // 損益表項目（營收、成本等）：將該年所有單季數值完整累加
+                    return yearReports.reduce((sum, r) => sum + (r[realKey] || 0), 0);
+                }
+            }
+        }
+
+        // =================================================================
+        // ── 🎯 渲染表格看板模組 ──
+        // =================================================================
+        async function renderFinancialTable() {
+            const tbody = document.getElementById('tableBody');
+            if (!tbody) return;
+            
+            const metricHeader = document.getElementById('th-metric-name');
+            if (metricHeader) metricHeader.innerText = currentMetric;
+            
+            const stockNum = getRawStockNumber();
+            let rowsHtml = "";
+
+            if (!globalMopsData || globalMopsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">暫無真實財報快取資料</td></tr>`;
+                return;
+            }
+
+            const isEps = (currentMetric.toLowerCase() === "eps");
+            const unitLabel = isEps ? "元" : "仟元";
+
+            if (currentPeriod === "quarter") {
+                for (let index = 0; index < globalMopsData.length; index++) {
+                    const currentReport = globalMopsData[index];
+                    let label = currentReport.periodName; 
+                    let val = getRealFinancialValue(currentMetric, "quarter", index, stockNum);
+                    
+                    // YoY 尋找去年同季
+                    const targetYearYoY = String(parseInt(currentReport.year) - 1);
+                    const targetSeasonYoY = currentReport.season;
+                    const yoyIndex = globalMopsData.findIndex(r => r.year === targetYearYoY && r.season === targetSeasonYoY);
+                    
+                    let yoy = "0.00";
+                    if (yoyIndex !== -1) {
+                        let pastVal = getRealFinancialValue(currentMetric, "quarter", yoyIndex, stockNum);
+                        yoy = pastVal !== 0 ? ((val - pastVal) / pastVal * 100).toFixed(2) : "0.00";
+                    }
+
+                    let arrow = parseFloat(yoy) >= 0 ? '<span style="color: #dc2626;">▲</span>' : '<span style="color: #16a34a;">▼</span>';
+                    let colorStyle = parseFloat(yoy) >= 0 ? '#dc2626' : '#16a34a';
+                    if (yoy === "0.00") { arrow = ""; colorStyle = "#64748b"; }
+
+                    rowsHtml += `
+                        <tr>
+                            <td><strong>${label}</strong></td>
+                            <td style="color: var(--primary-blue); font-weight: 500;">${currentMetric} (單季)</td>
+                            <td style="font-weight: bold; color: #334155;">${isEps ? val.toFixed(2) : Math.round(val).toLocaleString()} ${unitLabel}</td>
+                            <td style="color: ${colorStyle}; font-weight: bold;">${arrow} ${Math.abs(yoy)}%</td>
+                            <td><span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">獨立單季清洗</span></td>
+                        </tr>`;
+                }
+            } else {
+                const uniqueYears = [...new Set(globalMopsData.map(r => r.year))];
+                
+                uniqueYears.forEach((year, index) => {
+                    const yearReports = globalMopsData.filter(r => r.year === year);
+                    const seasonCount = yearReports.length;
+                    
+                    let label = `${parseInt(year) + 1911} 全年度報告`;
+                    if (seasonCount < 4) {
+                        const maxSeason = Math.max(...yearReports.map(r => parseInt(r.season)));
+                        label = `${parseInt(year) + 1911} 年度 (已累計四季中前 ${maxSeason} 季)`;
+                    }
+
+                    let val = getRealFinancialValue(currentMetric, "year", index, stockNum);
+                    
+                    let yoy = "0.00";
+                    if (index + 1 < uniqueYears.length) {
+                        let pastYearVal = getRealFinancialValue(currentMetric, "year", index + 1, stockNum);
+                        yoy = pastYearVal !== 0 ? ((val - pastYearVal) / pastYearVal * 100).toFixed(2) : "0.00";
+                    }
+                    
+                    let arrow = parseFloat(yoy) >= 0 ? '<span style="color: #dc2626;">▲</span>' : '<span style="color: #16a34a;">▼</span>';
+                    let colorStyle = parseFloat(yoy) >= 0 ? '#dc2626' : '#16a34a';
+                    if (yoy === "0.00") { arrow = ""; colorStyle = "#64748b"; }
+
+                    rowsHtml += `
+                        <tr>
+                            <td><strong>${label}</strong></td>
+                            <td style="color: #7c3aed; font-weight: 500;">${currentMetric}</td>
+                            <td style="font-weight: bold; color: #334155;">${isEps ? val.toFixed(2) : Math.round(val).toLocaleString()} ${unitLabel}</td>
+                            <td style="color: ${colorStyle}; font-weight: bold;">${arrow} ${Math.abs(yoy)}%</td>
+                            <td><span style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">年度單季加總</span></td>
+                        </tr>`;
+                });
+            }
+            tbody.innerHTML = rowsHtml;
+        }
+
+        function changeMetric(metricName) {
+            currentMetric = metricName;
+            document.querySelectorAll('#metricGrid .metric-btn').forEach(btn => btn.classList.toggle('active', btn.innerText === metricName));
+            renderFinancialTable();
+        }
+
+        function changePeriod(periodType) {
+            currentPeriod = periodType;
+            const btnQ = document.getElementById('btn-quarter');
+            const btnY = document.getElementById('btn-year');
+            if (btnQ) btnQ.classList.toggle('active', periodType === 'quarter');
+            if (btnY) btnY.classList.toggle('active', periodType === 'year');
+            renderFinancialTable();
+        }
+
+        // =================================================================
+        // ── 財報計算機聯動邏輯 ──
+        // =================================================================
+        async function handleTypeChange() {
+            const typeSelectEl = document.getElementById('calcTypeSelect');
+            if (!typeSelectEl) return;
+            const typeSelect = typeSelectEl.value;
+            const detailSelect = document.getElementById('calcPeriodDetailSelect');
+            if (!detailSelect) return;
+            
+            detailSelect.innerHTML = "";
+            if (!globalMopsData) return;
+
+            if (typeSelect === 'year') {
+                const uniqueYears = [...new Set(globalMopsData.map(r => r.year))];
+                uniqueYears.forEach((y, idx) => {
+                    let opt = document.createElement('option');
+                    opt.value = idx;
+                    opt.text = `${parseInt(y) + 1911} 年度`;
+                    detailSelect.appendChild(opt);
+                });
+            } else {
+                globalMopsData.forEach((r, idx) => {
+                    let opt = document.createElement('option');
+                    opt.value = idx;
+                    opt.text = r.periodName + (typeSelect === 'quarter' ? " (單季)" : "");
+                    detailSelect.appendChild(opt);
+                });
+            }
+            fetchAndFillSelectedData();
+        }
+
+        function syncNetProfit(changedId) {
+            const targetId = changedId === 'in-netProfit1' ? 'in-netProfit2' : 'in-netProfit1';
+            const targetEl = document.getElementById(targetId);
+            const changedEl = document.getElementById(changedId);
+            if (targetEl && changedEl) {
+                targetEl.value = changedEl.value;
+            }
+            doImmediateCalc();
+        }
+
+        function fetchAndFillSelectedData() {
+            const typeSelectEl = document.getElementById('calcTypeSelect');
+            const detailSelectEl = document.getElementById('calcPeriodDetailSelect');
+            if (!typeSelectEl || !detailSelectEl) return;
+
+            const typeSelect = typeSelectEl.value; 
+            const detailIndex = parseInt(detailSelectEl.value) || 0;
+            const stockNum = getRawStockNumber();
+
+            const setVal = (id, metric) => {
+                const el = document.getElementById(id);
+                if (el) el.value = Math.round(getRealFinancialValue(metric, typeSelect, detailIndex, stockNum));
+            };
+
+            setVal('in-revenue', '營業收入');
+            setVal('in-cost', '營業成本');
+            setVal('in-grossProfit', '營業毛利');
+            setVal('in-netProfit1', '本期淨利');
+            setVal('in-netProfit2', '本期淨利');
+            setVal('in-totalAssets', '資產總額');
+            setVal('in-totalLiabilities', '負債總額');
+            setVal('in-equity', '權益總額');
+            setVal('in-currentAssets', '流動資產');
+            setVal('in-currentLiabilities', '流動負債');
+            setVal('in-inventory', '平均存貨');
+            setVal('in-shares', '在外流通股數');
+
+            doImmediateCalc();
+        }
+
+        function doImmediateCalc() {
+            if (!document.getElementById('in-revenue')) return;
+
+            const grossProfit = parseFloat(document.getElementById('in-grossProfit').value) || 0;
+            const revenue = parseFloat(document.getElementById('in-revenue').value) || 0;
+            const netProfit = parseFloat(document.getElementById('in-netProfit1').value) || 0; 
+            const equity = parseFloat(document.getElementById('in-equity').value) || 0;
+            const totalLiabilities = parseFloat(document.getElementById('in-totalLiabilities').value) || 0;
+            const totalAssets = parseFloat(document.getElementById('in-totalAssets').value) || 0;
+            const currentAssets = parseFloat(document.getElementById('in-currentAssets').value) || 0;
+            const currentLiabilities = parseFloat(document.getElementById('in-currentLiabilities').value) || 0;
+            const cost = parseFloat(document.getElementById('in-cost').value) || 0;
+            const inventory = parseFloat(document.getElementById('in-inventory').value) || 0;
+            const shares = parseFloat(document.getElementById('in-shares').value) || 0;
+
+            function applyResultStyle(elementId, value, unit) {
+                const el = document.getElementById(elementId);
+                if (!el) return;
+                if (!isFinite(value) || isNaN(value)) {
+                    el.innerText = "計算錯誤";
+                    el.className = "formula-right-result";
+                    return;
+                }
+                el.innerText = value.toFixed(2) + " " + unit;
+                el.className = "formula-right-result " + (value >= 0 ? "result-positive" : "result-negative");
+            }
+
+            const grossMargin = revenue !== 0 ? (grossProfit / revenue) * 100 : 0;
+            applyResultStyle('res-grossMargin', grossMargin, "%");
+
+            const roe = equity !== 0 ? (netProfit / equity) * 100 : 0;
+            applyResultStyle('res-roe', roe, "%");
+
+            const debtRatio = totalAssets !== 0 ? (totalLiabilities / totalAssets) * 100 : 0;
+            applyResultStyle('res-debtRatio', debtRatio, "%");
+
+            const currentRatio = currentLiabilities !== 0 ? (currentAssets / currentLiabilities) * 100 : 0;
+            applyResultStyle('res-currentRatio', currentRatio, "%");
+
+            const inventoryTurnover = inventory !== 0 ? (cost / inventory) : 0;
+            const inventoryDays = inventoryTurnover !== 0 ? 365 / inventoryTurnover : 0;
+            applyResultStyle('res-inventoryDays', inventoryDays, "天");
+
+            const eps = shares !== 0 ? (netProfit / shares) : 0;
+            applyResultStyle('res-eps', eps, "元");
+        }
+
+        async function initPage() {
+            console.log("[🔍 偵錯] 網頁已載入，開始執行 initPage()");
+            const ticker = getStockId();
+            const stockNum = getRawStockNumber();
+            const stockName = getStockName();
+            
+            const staticName = fillTaiwanStockFact(stockNum, stockName);
+            
+            console.log("[🔍 偵錯] 正在呼叫 fetchMopsFinancialData...");
+            await fetchMopsFinancialData(stockNum);
+            
+            console.log("[🔍 偵錯] 財報資料獲取與單季拆解成功，啟動選單對齊與渲染。");
+            await handleTypeChange(); 
+            await renderFinancialTable();
+
+            try {
+                console.log(`[🔍 偵錯] 開始同步請求 Yahoo 股價。代碼: ${ticker}`);
+                const result = await fetchYahooDirectly(ticker);
+                const meta = result.meta;
+                
+                const dispEl = document.getElementById('stockDisplay');
+                const nameEl = document.getElementById('c_name');
+                const tickerEl = document.getElementById('c_ticker');
+                const tzEl = document.getElementById('c_timezone');
+                const curEl = document.getElementById('c_currency');
+                const statusEl = document.getElementById('c_status');
+
+                if (dispEl) dispEl.innerText = `${staticName} (${ticker})`;
+                if (nameEl) nameEl.innerText = stockName ? `${stockName} (${stockNum})` : staticName;
+                if (tickerEl) tickerEl.innerText = meta?.symbol || ticker;
+                if (tzEl) tzEl.innerText = meta?.timezone || "Asia/Taipei";
+                if (curEl) curEl.innerText = meta?.currency || "TWD";
+                if (statusEl) statusEl.innerText = "正常交易市場掛牌個股";
+
+                const timestamps = result.timestamp;
+                const q = result.indicators.quote[0];
+                const adj = result.indicators.adjclose?.[0]?.adjclose || q.close;
+
+                const prevCloseEl = document.getElementById('c_prev_close');
+                if (prevCloseEl) {
+                    if (timestamps && timestamps.length > 0) {
+                        let lastIdx = timestamps.length - 1;
+                        while (lastIdx >= 0 && !q.close[lastIdx]) { lastIdx--; }
+                        if (lastIdx >= 0) {
+                            const lastDate = new Date(timestamps[lastIdx] * 1000).toISOString().slice(0, 10);
+                            prevCloseEl.innerText = `${adj[lastIdx].toFixed(2)} 元 (${lastDate})`;
+                        }
+                    } else {
+                        prevCloseEl.innerText = meta?.previousClose ? `${meta.previousClose} 元` : "暫無報價";
+                    }
+                }
+            } catch (err) {
+                console.error("[❌ 錯誤] Yahoo 股價載入異常:", err);
+                const prevCloseEl = document.getElementById('c_prev_close');
+                if (prevCloseEl) prevCloseEl.innerText = "載入異常";
+            }
+        }
+
+        window.onload = function() { initPage(); };
+
+        // 導覽列與滾動監聽
+        const sections = document.querySelectorAll('section');
+        const navItems = document.querySelectorAll('.nav-item');
+        const scrollArea = document.getElementById('scrollArea');
+        const dynamicHeader = document.getElementById('dynamicHeader');
+
+        if (scrollArea && dynamicHeader) {
+            scrollArea.addEventListener('scroll', () => {
+                let scrollTop = scrollArea.scrollTop;
+                if (scrollTop > 20) { dynamicHeader.classList.add('shrink'); } 
+                else { dynamicHeader.classList.remove('shrink'); }
+
+                let current = "";
+                sections.forEach(section => {
+                    if (scrollTop >= section.offsetTop - 120) { current = section.getAttribute('id'); }
+                });
+                navItems.forEach(item => {
+                    item.classList.remove('active');
+                    if (item.getAttribute('href') === `#${current}`) item.classList.add('active');
+                });
+            });
+        }
+</script>
+</body>
