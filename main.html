@@ -1136,17 +1136,12 @@
             const stockNum = getRawStockNumber();
             const stockName = getStockName();
             
+            // 1. 優先填入本地靜態快取事實 (網頁最基礎的常駐資訊)
             const staticName = fillTaiwanStockFact(stockNum, stockName);
             
-            console.log("[🔍 偵錯] 正在呼叫 fetchMopsFinancialData...");
-            await fetchMopsFinancialData(stockNum);
-            
-            console.log("[🔍 偵錯] 財報資料獲取與單季拆解成功，啟動選單對齊與渲染。");
-            await handleTypeChange(); 
-            await renderFinancialTable();
-
+            // 2. 【優先調整】先抓取並渲染 Yahoo 股價與即時基本資料
             try {
-                console.log(`[🔍 偵錯] 開始同步請求 Yahoo 股價。代碼: ${ticker}`);
+                console.log(`[🔍 偵錯] 開始同步請求 Yahoo 股價基本資料。代碼: ${ticker}`);
                 const result = await fetchYahooDirectly(ticker);
                 const meta = result.meta;
                 
@@ -1181,10 +1176,27 @@
                         prevCloseEl.innerText = meta?.previousClose ? `${meta.previousClose} 元` : "暫無報價";
                     }
                 }
+                console.log("[🔍 偵錯] Yahoo 基本資料與股價載入成功。");
             } catch (err) {
                 console.error("[❌ 錯誤] Yahoo 股價載入異常:", err);
                 const prevCloseEl = document.getElementById('c_prev_close');
                 if (prevCloseEl) prevCloseEl.innerText = "載入異常";
+            }
+
+            // 3. 基本資料上架完成後，隨即開跑大件的 MOPS 歷史財報三表引擎
+            try {
+                console.log("[🔍 偵錯] 接著呼叫 fetchMopsFinancialData 抓取歷史財報...");
+                await fetchMopsFinancialData(stockNum);
+                
+                console.log("[🔍 偵錯] 財報資料獲取與單季拆解成功，啟動選單對齊與渲染。");
+                await handleTypeChange(); 
+                await renderFinancialTable();
+            } catch (mopsErr) {
+                console.error("[❌ 錯誤] MOPS 財報解析或融合時發生異常:", mopsErr);
+                const tbody = document.getElementById('tableBody');
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">財報載入失敗: ${mopsErr.message}</td></tr>`;
+                }
             }
         }
 
