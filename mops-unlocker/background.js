@@ -1,12 +1,15 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "FETCH_MOPS") {
-        console.log("背景腳本收到請求，準備直連 MOPS...", message.payload);
+        // 🎯 改成動態網址：優先使用前端傳過來的 url，若無則預設舊網址
+        const targetUrl = message.url || "https://mops.twse.com.tw/mops/api/t163sb01";
+        console.log(`背景腳本收到請求，準備直連 MOPS API 網址: [${targetUrl}]`, message.payload);
 
-        fetch("https://mops.twse.com.tw/mops/api/t163sb01", {
+        fetch(targetUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Referer": "https://mops.twse.com.tw/mops/#/web/t163sb01"
+                // 動態產生 Referer，如果傳入明細表網址，就帶明細表的雜湊 Hash
+                "Referer": targetUrl.replace("/api/", "/#/web/") 
             },
             body: JSON.stringify(message.payload)
         })

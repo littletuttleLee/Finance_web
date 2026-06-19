@@ -6,7 +6,7 @@
       "type": "modifyHeaders",
       "requestHeaders": [
         { "header": "Origin", "operation": "set", "value": "https://mops.twse.com.tw" },
-        { "header": "Referer", "operation": "set", "value": "https://mops.twse.com.tw/mops/#/web/t163sb01" }
+        { "header": "Referer", "operation": "set", "value": "https://mops.twse.com.tw/mops/" }
       ],
       "responseHeaders": [
         { "header": "Access-Control-Allow-Origin", "operation": "set", "value": "*" },
