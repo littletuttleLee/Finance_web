@@ -405,7 +405,7 @@
                             <tr>
                                 <th id="th-period">財報結算期別</th>
                                 <th id="th-metric-name">會計科目項目</th>
-                                <th>報表揭露數值 (千元/股)</th>
+                                <th>報表揭露數值 (元/股)</th>
                                 <th>季度/年度年增率 (YoY)</th>
                                 <th>審計狀態</th>
                             </tr>
@@ -631,7 +631,7 @@
         }
 
         // =================================================================
-        // ── 💎 官方新版 SPA 數據解析引擎（損益表 + 資產表 + 資產明細・三表完美融合版） ──
+        // ── 💎 官方新版 SPA 數據解析引擎（Q1-Q3獨立、Q4全年度累計精準還原版） ──
         // =================================================================
         async function fetchMopsFinancialData(stockNum) {
             if (globalMopsData && globalMopsData.length > 0) {
@@ -642,7 +642,7 @@
             console.log(`%c[🔍 MOPS 外掛三表聯動引擎] 啟動。目標個股: [${targetNumClean}]`, "color: #1e40af; font-weight: bold; font-size: 14px;");
 
             const quartersToFetch = getRecentQuarters(8);
-            const cumulativeReports = [];
+            const rawReports = [];
 
             // 透過外掛通道安全抓取官方 API
             const callExtensionWithUrl = (apiUrl, q) => {
@@ -682,7 +682,6 @@
                     if (resultData.reportList && Array.isArray(resultData.reportList)) {
                         resultData.reportList.forEach(row => {
                             if (row && row.length >= 2) {
-                                // 洗失中文字名稱中的全形與半形空格
                                 const key = String(row[0]).replace(/[\s\u3000]/g, '').trim();
                                 const valStr = String(row[1]).trim();
                                 
@@ -692,16 +691,8 @@
                                 }
                                 
                                 if (key) {
-                                    // 安全邏輯 1：新一列若完全無數值（大標過渡列），拒絕覆蓋已有數據
-                                    if (valStr === "" && targetMap[key] !== undefined) {
-                                        return; 
-                                    }
-                                    
-                                    // 安全邏輯 2：若原先已有有效數值，且新帶入值為 0（非該表主科目），拒絕覆蓋
-                                    if (targetMap[key] !== undefined && targetMap[key] !== 0 && cleanVal === 0) {
-                                        return;
-                                    }
-
+                                    if (valStr === "" && targetMap[key] !== undefined) return; 
+                                    if (targetMap[key] !== undefined && targetMap[key] !== 0 && cleanVal === 0) return;
                                     targetMap[key] = cleanVal;
                                 }
                             }
@@ -716,20 +707,16 @@
                     try {
                         console.log(`%c[⏳ 三表同步調度中] 正在要求 ${q.year}Q${q.season} 的完整財務數據...`, "color: #4b5563;");
 
-                        // 🎯 同步啟動三個軌道的請求，最大化流暢度與速度
                         const [incomePayload, assetPayload, detailPayload] = await Promise.all([
-                            callExtensionWithUrl("https://mops.twse.com.tw/mops/api/t164sb04", q), // 軌道 A: 綜合損益表
-                            callExtensionWithUrl("https://mops.twse.com.tw/mops/api/t163sb01", q), // 軌道 B: 資產負債表 (新補入)
-                            callExtensionWithUrl("https://mops.twse.com.tw/mops/api/t164sb03", q)  // 軌道 C: 資產表明細表
+                            callExtensionWithUrl("https://mops.twse.com.tw/mops/api/t164sb04", q),
+                            callExtensionWithUrl("https://mops.twse.com.tw/mops/api/t163sb01", q),
+                            callExtensionWithUrl("https://mops.twse.com.tw/mops/api/t164sb03", q)
                         ]);
 
-                        // 🎯 累加並非覆蓋地融合三張報表的數據
                         const kvMap = {};
-                        parsePayloadToKvMap(incomePayload, kvMap);  // 1. 灌入損益表
-                        parsePayloadToKvMap(assetPayload, kvMap);   // 2. 灌入資產負債主表 (獲取流動資產/負債)
-                        parsePayloadToKvMap(detailPayload, kvMap);  // 3. 灌入明細表 (獲取精密存貨)
-
-                        console.log(`%c[🧩 三表增量融合對照表] ${q.year}Q${q.season} (mergedKvMap):`, "color: #0369a1;", kvMap);
+                        parsePayloadToKvMap(incomePayload, kvMap);  
+                        parsePayloadToKvMap(assetPayload, kvMap);   
+                        parsePayloadToKvMap(detailPayload, kvMap);  
 
                         const findVal = (possibleKeys) => {
                             for (const key of possibleKeys) {
@@ -739,7 +726,16 @@
                             return foundKey ? kvMap[foundKey] : 0;
                         };
 
-                        // 🎯 依據 t163sb01 回傳結構優化關鍵字匹配
+                        const rawNetIncome = findVal(["本期淨利（淨損）", "繼續營業單位本期淨利（淨損）", "本期淨利"]);
+                        const rawEps = findVal(["基本每股盈餘", "基本每股盈餘（元）"]);
+
+                        let calculatedShares = 0;
+                        if (rawEps !== 0 && rawNetIncome !== 0) {
+                            calculatedShares = rawNetIncome / rawEps; 
+                        } else {
+                            calculatedShares = findVal(["在外流通股數", "普通股股本", "股本合計"]);
+                        }
+
                         const parsedReport = {
                             year: q.year,
                             season: q.season,
@@ -748,19 +744,18 @@
                             "營業成本": findVal(["營業成本合計", "營業成本"]),
                             "營業利益": findVal(["營業利益（損失）", "營業利益"]),
                             "營業毛利": findVal(["營業毛利（毛損）淨額", "營業毛利（毛損）", "營業毛利"]),
-                            "本期淨利": findVal(["本期淨利（淨損）", "繼續營業單位本期淨利（淨損）", "本期淨利"]),
+                            "本期淨利": rawNetIncome,
                             "資產總額": findVal(["資產總額", "資產總計", "資產總額合計"]),
                             "負債總額": findVal(["負債總額", "負債總計", "負債總額合計"]),
                             "權益總額": findVal(["權益總額", "權益總計", "權益總額合計", "權益合計"]),
                             "流動資產": findVal(["流動資產合計", "流動資產總額", "流動資產總計", "流動資產"]),
                             "流動負債": findVal(["流動負債合計", "流動負債總額", "流動負債總計", "流動負債"]),
                             "原始期末存貨": findVal(["存貨", "存貨淨額", "存貨合計"]), 
-                            "在外流通股數": findVal(["在外流通股數", "普通股股本", "股本合計"]),
-                            "eps": findVal(["基本每股盈餘", "基本每股盈餘（元）"])
+                            "在外流通股數": calculatedShares, 
+                            "eps": rawEps
                         };
 
-                        console.log(`%c[📋 欄位提取結果] ${q.year}Q${q.season} 三表融合成功:`, "color: #0d9488;", parsedReport);
-                        cumulativeReports.push(parsedReport);
+                        rawReports.push(parsedReport);
                         
                     } catch (e) {
                         console.warn(`[⚠️ 略過季度] 某些表抓取失敗 ${q.year}Q${q.season}:`, e.message);
@@ -768,49 +763,74 @@
                     await new Promise(r => setTimeout(r, 300));
                 }
 
-                // 2. 進行單季數據拆解與【平均存貨】動態計算
-                const singleQuarterReports = [];
-                const incomeStatementFields = ["營業收入", "營業成本", "營業利益", "營業毛利", "本期淨利", "eps"];
+                // 2. 開始根據你的觀察規律進行單季數據清洗
+                const processedReports = [];
+                const incomeStatementFields = ["營業收入", "營業成本", "營業利益", "營業毛利", "本期淨利"];
 
-                cumulativeReports.sort((a, b) => (parseInt(a.year) * 10 + parseInt(a.season)) - (parseInt(b.year) * 10 + parseInt(b.season)));
+                // 由舊到新排序，方便往前找季度做扣除
+                rawReports.sort((a, b) => (parseInt(a.year) * 10 + parseInt(a.season)) - (parseInt(b.year) * 10 + parseInt(b.season)));
 
-                cumulativeReports.forEach((current, idx) => {
+                rawReports.forEach((current) => {
                     const currentSeason = parseInt(current.season);
                     const processed = { ...current, periodName: `${parseInt(current.year) + 1911} 年 第 ${current.season} 季` };
 
-                    if (currentSeason > 1 && idx > 0) {
-                        const prevReport = cumulativeReports[idx - 1];
-                        if (prevReport.year === current.year && parseInt(prevReport.season) === currentSeason - 1) {
-                            incomeStatementFields.forEach(field => {
-                                processed[field] = current[field] - prevReport[field];
-                            });
-                        }
-                    }
+                    // 🎯核心邏輯：如果目前是第 4 季，要把同一年 1, 2, 3 季的數據扣掉
+                    if (currentSeason === 4) {
+                        const q1Report = rawReports.find(r => r.year === current.year && parseInt(r.season) === 1);
+                        const q2Report = rawReports.find(r => r.year === current.year && parseInt(r.season) === 2);
+                        const q3Report = rawReports.find(r => r.year === current.year && parseInt(r.season) === 3);
 
-                    const currentEnding = current["原始期末存貨"] || 0;
+                        incomeStatementFields.forEach(field => {
+                            let prevTotal = 0;
+                            if (q1Report) prevTotal += q1Report[field];
+                            if (q2Report) prevTotal += q2Report[field];
+                            if (q3Report) prevTotal += q3Report[field];
 
-                    if (idx > 0) {
-                        const prevReport = cumulativeReports[idx - 1];
-                        const prevEnding = prevReport["原始期末存貨"] || 0;
+                            // 第 4 季單季 = 全年累計 - 前三季各自的獨立單季
+                            processed[field] = current[field] - prevTotal;
+                        });
 
-                        const isContinuous = 
-                            (currentSeason === 1 && parseInt(prevReport.season) === 4 && parseInt(current.year) - parseInt(prevReport.year) === 1) ||
-                            (currentSeason > 1 && parseInt(prevReport.season) === currentSeason - 1 && prevReport.year === current.year);
-
-                        if (isContinuous && currentEnding > 0 && prevEnding > 0) {
-                            processed["平均存貨"] = (currentEnding + prevEnding) / 2;
+                        // 🎯 EPS 獨立計算：第 4 季單季 EPS = 第 4 季單季淨利 / 第 4 季在外流通股數
+                        if (processed["在外流通股數"] > 0) {
+                            // 根據原先邏輯反推：淨利 / 股數 = EPS
+                            processed["eps"] = processed["本期淨利"] / processed["在外流通股數"];
                         } else {
-                            processed["平均存貨"] = currentEnding; 
+                            processed["eps"] = current["eps"] - ((q1Report?.eps || 0) + (q2Report?.eps || 0) + (q3Report?.eps || 0));
                         }
-                    } else {
-                        processed["平均存貨"] = currentEnding; 
+                    } 
+                    // 如果是 1, 2, 3 季，官方回傳的就是單季，不用做任何調整
+                    else {
+                        processed["eps"] = current["eps"];
                     }
 
-                    singleQuarterReports.push(processed);
+                    processedReports.push(processed);
                 });
 
-                singleQuarterReports.sort((a, b) => (parseInt(b.year) * 10 + parseInt(b.season)) - (parseInt(a.year) * 10 + parseInt(a.season)));
-                globalMopsData = singleQuarterReports;
+                // 3. 計算平均存貨 (動態尋找上一季期末存貨)
+                processedReports.forEach((processed) => {
+                    const currentSeason = parseInt(processed.season);
+                    let prevYear = processed.year;
+                    let prevSeason = currentSeason - 1;
+
+                    if (currentSeason === 1) {
+                        prevYear = String(parseInt(processed.year) - 1);
+                        prevSeason = 4;
+                    }
+
+                    const prevReport = rawReports.find(r => r.year === prevYear && parseInt(r.season) === prevSeason);
+                    const currentEnding = processed["原始期末存貨"] || 0;
+                    const prevEnding = prevReport ? (prevReport["原始期末存貨"] || 0) : 0;
+
+                    if (currentEnding > 0 && prevEnding > 0) {
+                        processed["平均存貨"] = (currentEnding + prevEnding) / 2;
+                    } else {
+                        processed["平均存貨"] = currentEnding;
+                    }
+                });
+
+                // 轉為由新到舊排序以利前端渲染
+                processedReports.sort((a, b) => (parseInt(b.year) * 10 + parseInt(b.season)) - (parseInt(a.year) * 10 + parseInt(a.season)));
+                globalMopsData = processedReports;
                 return globalMopsData;
 
             } catch (error) {
@@ -819,7 +839,7 @@
         }
 
         // =================================================================
-        // ── 🔄 欄位對照與數值讀取核心（支援單季與年度彙整讀取）──
+        // ── 🔄 欄位對照與數值讀取核心（支援精準單季與全年度直讀）──
         // =================================================================
         function getRealFinancialValue(metric, period, index, stockNum) {
             if (!globalMopsData || globalMopsData.length === 0) return 0;
@@ -841,31 +861,38 @@
             };
 
             const realKey = metricMap[metric] || metric;
-            const balanceSheetFields = ["資產總額", "負債總額", "權益總額", "流動資產", "流動負債", "平均存貨", "在外流通股數", "eps"];
+            const balanceSheetFields = ["資產總額", "負債總額", "權益總額", "流動資產", "流動負債", "平均存貨", "在外流通股數"];
 
             if (period === "quarter") {
                 if (index >= globalMopsData.length) return 0;
                 return globalMopsData[index][realKey] || 0;
             } else {
-                // 年度彙整：因 globalMopsData 已被拆為獨立四季，損益表科目在年度模式下需將該年所有單季進行加總
+                // 🎯 年度模式：直接去拿該年份的 Q4 (因為 Q4 本身就是官方完整一整年的累計數)
                 const uniqueYears = [...new Set(globalMopsData.map(r => r.year))];
                 if (index >= uniqueYears.length) return 0;
                 
                 const targetYear = uniqueYears[index];
                 const yearReports = globalMopsData.filter(r => r.year === targetYear);
+                
+                // 尋找 Q4，如果該年度尚未發布 Q4（如當前年度），則取最新一季
+                const q4Report = yearReports.find(r => parseInt(r.season) === 4) || yearReports[0];
+                
+                if (!q4Report) return 0;
 
-                if (balanceSheetFields.includes(realKey)) {
-                    // 資產負債表項目及 EPS：取該年最新季度（陣列第一筆）的期末數值
-                    return yearReports[0] ? (yearReports[0][realKey] || 0) : 0; 
-                } else {
-                    // 損益表項目（營收、成本等）：將該年所有單季數值完整累加
+                // 如果是損益表欄位且拿到了 Q4，注意！globalMopsData 裡的 Q4 已經被我們扣除變成「單季」了！
+                // 所以要還原成「全年度累計」，可以直接取用其計算前的累計基礎，或直接把 Q1+Q2+Q3+Q4單季 加回來
+                if (!balanceSheetFields.includes(realKey)) {
+                    // 損益表與 EPS 在年度模式下，將該年有抓到的季度直接加總（Q1單季 + Q2單季 + Q3單季 + Q4單季 = 全年度）
                     return yearReports.reduce((sum, r) => sum + (r[realKey] || 0), 0);
+                } else {
+                    // 資產負債表直接取期末數
+                    return q4Report[realKey] || 0;
                 }
             }
         }
 
         // =================================================================
-        // ── 🎯 渲染表格看板模組（修正 YoY 邏輯與年度排序） ──
+        // ── 🎯 渲染表格看板模組（支援最新單季規則）──
         // =================================================================
         async function renderFinancialTable() {
             const tbody = document.getElementById('tableBody');
@@ -883,17 +910,14 @@
             }
 
             const isEps = (currentMetric.toLowerCase() === "eps");
-            const unitLabel = isEps ? "元" : "仟元";
 
             if (currentPeriod === "quarter") {
-                // 這裡的 globalMopsData 已經是由新到舊（Q4 -> Q1）的完美排列
                 for (let index = 0; index < globalMopsData.length; index++) {
                     const currentReport = globalMopsData[index];
                     let label = currentReport.periodName; 
                     let val = getRealFinancialValue(currentMetric, "quarter", index, stockNum);
                     
-                    // 🎯 【精準財務邏輯】：年增率 (YoY) 的定義是「今年某季」對比「去年同季」。
-                    // 因此不論是 Q1 還是 Q4，YoY 永遠都是找：[今年年份 - 1] 且 [季度相同] 的數據。
+                    // 精準 YoY：單季對單季
                     const targetYearYoY = String(parseInt(currentReport.year) - 1);
                     const targetSeasonYoY = currentReport.season;
                     const yoyIndex = globalMopsData.findIndex(r => r.year === targetYearYoY && r.season === targetSeasonYoY);
@@ -910,7 +934,7 @@
                     }
 
                     let arrow = "";
-                    let colorStyle = "#64748b"; // 預設灰色（無數據或不變）
+                    let colorStyle = "#64748b";
 
                     if (hasPastData) {
                         const yoyFloat = parseFloat(yoy);
@@ -926,35 +950,35 @@
                         yoy = "無歷史資料對比";
                     }
 
+                    // 標記清洗狀態：第四季為特殊處理還原，一二三季為官方原始獨立單季
+                    const tagText = (parseInt(currentReport.season) === 4) ? "累計精準還原" : "官方原始單季";
+                    const tagBg = (parseInt(currentReport.season) === 4) ? "#fef3c7" : "#e0f2fe";
+                    const tagColor = (parseInt(currentReport.season) === 4) ? "#92400e" : "#0369a1";
+
                     rowsHtml += `
                         <tr>
                             <td><strong>${label}</strong></td>
                             <td style="color: var(--primary-blue); font-weight: 500;">${currentMetric} (單季)</td>
-                            <td style="font-weight: bold; color: #334155;">${isEps ? val.toFixed(2) : Math.round(val).toLocaleString()} ${unitLabel}</td>
+                            <td style="font-weight: bold; color: #334155;">${isEps ? val.toFixed(2) : Math.round(val).toLocaleString()}</td>
                             <td style="color: ${colorStyle}; font-weight: bold;">${arrow} ${yoy}</td>
-                            <td><span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">獨立單季清洗</span></td>
+                            <td><span style="background: ${tagBg}; color: ${tagColor}; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">${tagText}</span></td>
                         </tr>`;
                 }
             } else {
-                // 年度報告：從 globalMopsData 提取出所有不重複的年份
                 const uniqueYears = [...new Set(globalMopsData.map(r => r.year))];
-                
-                // 🎯 確保年度報告也是由新到舊排序（例如 114年 -> 113年 -> 112年）
                 uniqueYears.sort((a, b) => parseInt(b) - parseInt(a));
                 
                 uniqueYears.forEach((year, index) => {
                     const yearReports = globalMopsData.filter(r => r.year === year);
-                    const seasonCount = yearReports.length;
+                    const maxSeason = Math.max(...yearReports.map(r => parseInt(r.season)));
                     
                     let label = `${parseInt(year) + 1911} 全年度報告`;
-                    if (seasonCount < 4) {
-                        const maxSeason = Math.max(...yearReports.map(r => parseInt(r.season)));
-                        label = `${parseInt(year) + 1911} 年度 (已累計前 ${maxSeason} 季數據)`;
+                    if (maxSeason < 4) {
+                        label = `${parseInt(year) + 1911} 年度 (已累計前 ${maxSeason} 季)`;
                     }
 
                     let val = getRealFinancialValue(currentMetric, "year", index, stockNum);
                     
-                    // 年度 YoY 尋找去年度（index + 1 因為陣列已經是由新到舊排好）
                     let yoy = "0.00";
                     let hasPastYearData = false;
 
@@ -987,9 +1011,9 @@
                         <tr>
                             <td><strong>${label}</strong></td>
                             <td style="color: #7c3aed; font-weight: 500;">${currentMetric}</td>
-                            <td style="font-weight: bold; color: #334155;">${isEps ? val.toFixed(2) : Math.round(val).toLocaleString()} ${unitLabel}</td>
+                            <td style="font-weight: bold; color: #334155;">${isEps ? val.toFixed(2) : Math.round(val).toLocaleString()}</td>
                             <td style="color: ${colorStyle}; font-weight: bold;">${arrow} ${yoy}</td>
-                            <td><span style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">年度單季加總</span></td>
+                            <td><span style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">全年度加總</span></td>
                         </tr>`;
                 });
             }
